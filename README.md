@@ -4,8 +4,6 @@ RadClaw is a multi-agent medical imaging report generation system. It combines v
 
 The current implementation supports chest X-ray, chest CT, abdominal CT, and brain MRI datasets. It connects to a vision-language model through an OpenAI-compatible API and provides command-line runners for individual cases, batch generation, execution traces, and ablation studies.
 
-This README is based on the [project handover](docs/HANDOVER.md), with commands and paths updated to match the current source tree.
-
 ## How it works
 
 ```mermaid
