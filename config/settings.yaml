@@ -1,0 +1,85 @@
+model:
+  path: "qwen3.6-flash" 
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  api_key: ""
+  max_tokens: 8192
+  temperature: 0.8
+  top_p: 0.95
+  top_k: 20
+  presence_penalty: 1.5
+  enable_thinking: true
+  max_retries: 5
+  retry_base_delay_ms: 500
+
+# download data from huggingface base on the regitory name
+data:
+  chexpert_path: "./hf/Doorad/CheXpert-plus-RRG"
+  iu_xray_path: "./hf/X-iZhang/IU-Xray-RRG"                           
+  mimic_cxr_path: "./hf/Yamini-1628/MIMIC-CXR-RRG"                    
+  openi_path: "./hf/ykumards/open-i"
+  ct_rate_path: "./hf/ibrahimhamamci/CT-RATE"
+  radgenome_path: "./hf/RadGenome/RadGenome-ChestCT"
+  merlin_path: "./hf/merlin"
+  abdomenatlas_path: "./hf/AbdomenAtlas/AbdomenAtlas3.0Mini"
+  mr_rate_path: "./hf/Forithmus/MR-RATE"
+  radgenome_brain_mri_path: "./hf/JiayuLei/RadGenome-Brain_MRI"
+  default_split: "findings_section"
+  knowledge_dir: "./data/knowledge"
+  indexes_dir: "./data/indexes"
+  raw_dir: "./data/raw"
+  output_dir: "./output"
+
+embedding:
+  model_name: "./models/pritamdeka/S-PubMedBert-MS-MARCO"
+  device: "cuda:1"
+  batch_size: 64
+
+pubmed:
+  api_key: ""
+  max_results_per_query: 5
+  enabled: true
+
+snomed:
+  mode: "local"
+  snowstorm_url: "https://tx.fhir.org/r4"
+  edition: "900000000000207008"
+
+pipeline:
+  max_iterations: 3
+
+agents:
+  visual_analysis:
+    max_turns: 50
+    temperature: 0.7
+    max_tokens: 8192
+  evidence_retrieval:
+    max_turns: 20
+    temperature: 0.7
+    max_tokens: 4096
+  report_writing:
+    max_turns: 20
+    temperature: 0.7
+    max_tokens: 8192
+  quality_review:
+    max_turns: 15
+    temperature: 0.7
+    max_tokens: 4096
+
+hooks:
+  min_findings: 2
+  min_evidence_per_finding: 1
+  min_impressions: 1
+  require_anatomy_coverage: true
+
+limits:
+  compact_threshold_tokens: 20000
+  max_image_evidence_per_session: 30
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+  cors_origins: "*"
+
+remote_kb:
+  base_url: "http://localhost:8081"
+  timeout: 60.0

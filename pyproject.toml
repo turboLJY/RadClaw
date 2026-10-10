@@ -1,0 +1,44 @@
+[project]
+name = "radclaw"
+version = "0.1.0"
+description = "RadClaw: Multi-agent medical imaging report generation system"
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.30.0",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    "websockets>=12.0",
+    "pydantic>=2.7.0",
+    "Pillow>=10.3.0",
+    "numpy>=1.26.0",
+    "nibabel>=5.2.0",
+    "datasets>=2.19.0",
+    "pyarrow>=16.0.0",
+    "pyyaml>=6.0.1",
+    "scipy>=1.13.0",
+    "faiss-cpu>=1.7.4",
+    "sentence-transformers>=2.7.0",
+]
+
+[project.optional-dependencies]
+eval = [
+    "rouge-score>=0.1.2",
+    "bert-score>=0.3.13",
+]
+ingest = [
+    "owlready2>=0.46",
+    "biopython>=1.83",
+    "lxml>=5.0",
+]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

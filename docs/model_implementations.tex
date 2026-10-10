@@ -1,0 +1,79 @@
+% Manuscript fragment: include within the Methods section using \input{...}.
+% Based on the current RadClaw source and configuration, inspected 2026-09-30.
+% The prose describes this implementation; it does not establish which code
+% revision or parameter overrides generated every result in the manuscript.
+% No additional LaTeX packages or bibliography keys are required.
+%
+% AUTHOR CHECKS BEFORE SUBMISSION (comments do not appear in the typeset text):
+% 1. Confirm the generating model and dated API/model snapshot for the reported
+%    experiments. Current settings select qwen3.6-flash; a mutable API alias is
+%    not a frozen model revision. Record experiment dates and any overrides.
+% 2. Supply the experiment environment (exact package versions, operating system
+%    and local hardware), rather than interpreting pyproject.toml minimum
+%    versions or an API server's unknown hardware as the experimental environment.
+% 3. Supply the external guideline/case retrieval service implementation, corpus
+%    versions, index construction and evaluation-set exclusion procedure. The
+%    current checkout contains its client, not the server implementation.
+% 4. Verify the CT/MRI input setting against experiment records. The loader uses
+%    a single central array-axis-2 slice by default, without affine-based
+%    reorientation, and forwards positive_labels/disorders when present. These
+%    fields can originate from reference annotations. Their availability at
+%    inference must be established before describing an image-only evaluation.
+% 5. Reconcile evaluator image limits: the current CLI default is eight, whereas
+%    output/mimic/full_radclaw/sample_86/hallucination_detection.json records four.
+%    Do not replace either value with an asserted experiment-wide value without
+%    checking the evaluated output cohort. Temperature and token limits below
+%    likewise describe the current CLI defaults.
+% 6. Add the archived software release/DOI, licence and access restrictions in
+%    the manuscript's separate Code availability section. Do not assert public
+%    release, test-set exclusion, exact reproducibility or independent-model
+%    evaluation until those claims are supported by the experimental records.
+%
+% Editorial references consulted (not scientific references for the method):
+% https://www.nature.com/natbiomedeng/submission-guidelines/aip-and-formatting
+% https://www.nature.com/documents/GuidelinesCodePublication.pdf
+
+\subsection{Model implementations}
+\label{sec:model-implementations}
+
+% Sources: config/settings.yaml; src/llm/client.py, LLMClient.stream;
+% src/agents/base.py; src/core/orchestrator.py, run_pipeline.
+% Effective parameters: agent temperatures override the global value of 0.8.
+% AgentConfig.max_tokens is not forwarded into QueryParams, so the global
+% 8,192-token limit applies to all four roles. top_k, presence_penalty and
+% enable_thinking are parsed from configuration but not sent by stream().
+RadClaw is implemented in Python (version 3.10 or later) as an inference-time framework comprising four agents for visual analysis, evidence retrieval, report writing and quality review. The agents share a pretrained vision--language backbone and are differentiated by role-specific system prompts, tool access and the information supplied from preceding stages. The supplied configuration uses Qwen3.6-Flash (API identifier \texttt{qwen3.6-flash}) through an OpenAI-compatible chat-completion interface, without task-specific parameter updates. Agent calls use a sampling temperature of 0.7, nucleus sampling with $p=0.95$ and a maximum completion length of 8,192 tokens. Tool definitions are supplied as JSON schemas, and tool outputs are incorporated into subsequent model calls. No sampling seed is supplied to the generation API.
+
+% Sources: src/core/orchestrator.py, _image_to_base64;
+% src/data/chest_ct_jsonl_loader.py, load_nifti_preview and get_exam_info;
+% src/data/ct_rate_loader.py; src/data/merlin_loader.py;
+% src/data/mr_rate_loader.py; src/core/context.py, _build_state_context.
+Input images are transmitted as PNG images, with the longest dimension reduced to at most 1,024 pixels using Lanczos interpolation while preserving aspect ratio. For the volumetric dataset loaders, the default input is a two-dimensional preview obtained from the central slice along array axis 2, designated axial, and rotated by $90^{\circ}$. Chest and abdominal CT previews use window centre/width settings of $-600/1{,}500$ and $50/350$ Hounsfield units, respectively; MRI previews are scaled between the first and ninety-ninth intensity percentiles. The previews are converted to 8-bit RGB images. Examination metadata accompany the images. When present, positive-label and disorder fields are also forwarded by the volumetric loaders as examination context.
+
+% Sources: src/agents/{visual_analysis,evidence_retrieval,report_writing,
+% quality_review}.py; src/tools/report/{build_finding,build_impression}.py;
+% src/core/orchestrator.py, _determine_agents_to_run and run_pipeline.
+The four agents have access to 8, 7, 5 and 6 tools, respectively. Visual tools support regional cropping, magnification, contrast adjustment, annotation and image-evidence binding. The writing agent creates structured findings containing anatomical locations, observation types and evidence identifiers, and links each impression to supporting findings before rendering the report. Quality review assesses visual, evidential and internal consistency, together with reporting standards. Issues are attributed to the responsible stage; revision restarts from the earliest implicated agent and reruns its downstream stages. The pipeline permits at most three passes, including the initial pass. Per-pass limits are 50, 20, 20 and 15 model turns for visual analysis, retrieval, writing and review, respectively; reaching a turn limit triggers one final tool-free completion. Reports remaining at the pipeline limit are returned with unresolved review issues retained.
+
+% Sources: src/tools/evidence/__init__.py; src/kb/embedder.py;
+% src/kb/{vector_store,radlex_source,snomed_source}.py;
+% src/tools/evidence/{literature_search,case_retrieval,evidence_scoring}.py.
+% Local terminology hybrid retrieval requests 2k dense and 2k sparse hits.
+% RRF uses zero-based ranks and score 1/(60+dr)+1/(60+sr), assigning a missing
+% branch rank of 2k+1. Do not attribute these local settings to the remote KB.
+% Evidence semantic scores embed the first 512 characters of each candidate;
+% lexical scores use its full content and remove the tool's stop-word list.
+Terminology retrieval uses RadLex and SNOMED CT with the pretrained S-PubMedBert-MS-MARCO encoder. Text embeddings are $\ell_2$-normalised and searched using FAISS inner-product indexes; when a corresponding BM25 index is available, dense and lexical rankings are combined by reciprocal-rank fusion with a constant of 60. Guideline and similar-case searches are routed to a modality-specific external retrieval service, and literature search additionally queries PubMed. Each guideline, case or PubMed query defaults to five returned items, subject to agent-specified overrides. Retrieved evidence is reranked against the visual findings using a weighted sum of embedding cosine similarity (weight 0.6) and the fraction of non-stopword finding tokens present in the evidence (weight 0.4). The semantic component uses the first 512 characters of each evidence item; lexical overlap alone is used if embedding inference is unavailable.
+
+% Sources: src/core/baselines.py; scripts/run_ablation.py.
+% The direct baseline inherits global temperature 0.8, unlike the agent
+% temperature of 0.7. The code therefore does not support a claim of identical
+% decoding temperatures across all four conditions.
+The implementation provides three ablation conditions using the same configured backbone: direct image-to-report generation without tools, visual analysis followed by report writing, and evidence retrieval followed by report writing. In the retrieval-only condition, the retrieval agent receives the image directly and infers observations before searching. Both two-agent conditions omit quality review and revision. The direct condition uses a single generation call with the global temperature of 0.8, $p=0.95$ and the same 8,192-token completion limit; the two-agent conditions retain the agent settings described above.
+
+% Sources: hallucination_detection/detect.py, build_parser, evaluate_case,
+% llm_extract_all_claims, llm_verify_support, match_findings_crimson,
+% llm_classify_taxonomy, sanitize_claim_results and compute_case_metrics;
+% run_mimic_hallu.sh; run_ct_rate_hallu.sh; run_merlin_hallu.sh;
+% run_mr_rate_hallu.sh. Prompt transcripts: docs/claim_evaluation_prompts.md.
+Claim-level evaluation is implemented separately from report generation. The supplied evaluation scripts also select Qwen3.6-Flash. The current evaluator defaults to temperature 0, a maximum completion length of 32,768 tokens and JSON-formatted responses. Atomic claims are extracted separately from generated and reference Findings and Impression sections. Each generated claim is assessed against the reference report and aggregated available evidence as fully supported, partially supported, unsupported, contradicted or unverifiable. Image-enabled evaluation attaches up to eight raster images per case by default to the support and final classification calls. Reference matching for Findings uses normalised finding and anatomy representations followed by greedy one-to-one matching, with a default candidate threshold of 0.45; identical normalised core findings are admitted directly. Separate checks assess Findings--Impression consistency and recommendation support before final H1--H10 error classification. Deterministic findings errors and omission events are merged with the model output. Unverifiable claims are excluded from error counts but retained in the denominator of the generated-claim error rate; reference omissions are reported separately.
