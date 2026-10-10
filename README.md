@@ -357,5 +357,3 @@ Some tests depend on local dataset or knowledge assets. The main extension point
 | Evaluation lacks reference text | Use batch, trace, or ablation outputs containing `ground_truth`. |
 | Ablation cases are unexpectedly skipped | Existing `summary.json` files trigger resume behavior; select a new output directory for a fresh run. |
 | Metric omitted or model download fails | Install that metric's dependencies, verify model/cache paths, and inspect evaluation logs. |
-
-Further implementation and operational background is available in [docs/HANDOVER.md](docs/HANDOVER.md).
